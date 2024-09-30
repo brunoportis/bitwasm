@@ -1,3 +1,4 @@
+#![feature(coverage_attribute)]
 use std::collections::HashMap;
 
 use console_error_panic_hook;
@@ -134,6 +135,7 @@ impl BitmapIndex {
 }
 
 #[wasm_bindgen(start)]
+#[coverage(off)]
 pub fn start() {
     std::panic::set_hook(Box::new(console_error_panic_hook::hook));
 
@@ -169,4 +171,58 @@ pub fn start() {
         "Admins ou com pendencias: {:?}",
         index.or_operation("is_admin", "tem_pendencias")
     ));
+}
+
+#[cfg(test)]
+pub mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bitmap_index() {
+        let mut index = BitmapIndex::new();
+
+        index.batch_insert("tem_pendencias".to_string(), [1, 3, 5, 7, 9].to_vec());
+        index.batch_insert("is_admin".to_string(), [7, 256, 512, 1024].to_vec());
+
+        assert_eq!(index.list("tem_pendencias"), [1, 3, 5, 7, 9]);
+        assert_eq!(index.list("is_admin"), [7, 256, 512, 1024]);
+        assert_eq!(index.list("unknown_key"), []);
+
+        assert_eq!(index.list_keys("tem_pendencias"), [682]);
+        assert_eq!(index.list_keys("is_admin"), [128, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+
+        assert_eq!(index.get("is_admin", 512), true);
+        assert_eq!(index.get("unknown_key", 0), false);
+
+    }
+
+    #[test]
+    fn test_get_as_binary() {
+        let mut index = BitmapIndex::new();
+
+        index.batch_insert("tem_pendencias".to_string(), [1, 3, 5, 7, 9].to_vec());
+        index.batch_insert("is_admin".to_string(), [7, 256, 512, 1024].to_vec());
+
+        assert_eq!(index.get_as_binary("tem_pendencias"), ["00000000000000000000001010101010"]);
+    }
+
+    #[test]
+    pub fn test_and_operation() {
+        let mut index = BitmapIndex::new();
+
+        index.batch_insert("tem_pendencias".to_string(), [1, 3, 5, 7, 9].to_vec());
+        index.batch_insert("is_admin".to_string(), [7, 256, 512, 1024].to_vec());
+
+        assert_eq!(index.and_operation("tem_pendencias", "is_admin"), [7]);
+    }
+
+    #[test]
+    pub fn test_or_operation() {
+        let mut index = BitmapIndex::new();
+
+        index.batch_insert("tem_pendencias".to_string(), [1, 3, 5, 7, 9].to_vec());
+        index.batch_insert("is_admin".to_string(), [7, 256, 512, 1024].to_vec());
+
+        assert_eq!(index.or_operation("tem_pendencias", "is_admin"), [1, 3, 5, 7, 9, 256, 512, 1024]);
+    }
 }
