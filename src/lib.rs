@@ -97,6 +97,40 @@ impl BitmapIndex {
         }
         result
     }
+
+    #[wasm_bindgen]
+    pub fn and_operation(&self, key1: &str, key2: &str) -> Vec<u32> {
+        let entry1 = self.index.get(key1).unwrap();
+        let entry2 = self.index.get(key2).unwrap();
+        let mut result = Vec::new();
+        for (i, word) in entry1.iter().enumerate() {
+            // result.push(word & entry2[i]);
+            for j in 0..32 {
+                if (word & (1 << j)) != 0 && (entry2[i] & (1 << j)) != 0 {
+                    result.push(i as u32 * 32 + j);
+                }
+            }
+        }
+        result
+    }
+
+    #[wasm_bindgen]
+    pub fn or_operation(&self, key1: &str, key2: &str) -> Vec<u32> {
+        let mut result = Vec::new();
+        if let (Some(entry1), Some(entry2)) = (self.index.get(key1), self.index.get(key2)) {
+            let len = entry1.len().max(entry2.len());
+            for i in 0..len {
+                let word1 = entry1.get(i).unwrap_or(&0);
+                let word2 = entry2.get(i).unwrap_or(&0);
+                for j in 0..32 {
+                    if (word1 & (1 << j)) != 0 || (word2 & (1 << j)) != 0 {
+                        result.push(i as u32 * 32 + j);
+                    }
+                }
+            }
+        }
+        result
+    }
 }
 
 #[wasm_bindgen(start)]
@@ -125,4 +159,14 @@ pub fn start() {
     log(&format!("Binários:"));
     log(&format!("{:?}", index.get_as_binary("tem_pendencias")));
     log(&format!("{:?}", index.get_as_binary("is_admin")));
+
+    log(&format!(
+        "Admins e com pendencias: {:?}",
+        index.and_operation("tem_pendencias", "is_admin")
+    ));
+
+    log(&format!(
+        "Admins ou com pendencias: {:?}",
+        index.or_operation("is_admin", "tem_pendencias")
+    ));
 }
